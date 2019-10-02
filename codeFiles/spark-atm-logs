@@ -1,0 +1,63 @@
+--conf "spark.ui.showConsoleProgress=false" \
+--conf "spark.driver.extraJavaOptions=-XX:MaxPermSize=6G -XX:+UseConcMarkSweepGC -Dlog4j.configuration=log4j-eir.properties" \
+--conf "spark.sql.tungsten.enabled=false" \
+--conf "spark.eventLog.dir=hdfs://nameservice1/user/spark/applicationHistory" \
+--conf "spark.eventLog.enabled=true" \
+--conf "spark.sql.codegen=false" \
+--conf "spark.sql.unsafe.enabled=false" \
+--conf "spark.executor.extraJavaOptions=-XX:+UseConcMarkSweepGC -Dlog4j.configuration=log4j-eir.properties" \
+--conf "spark.streaming.backpressure.enabled=true" \
+--conf "spark.locality.wait=1s" \
+--conf "spark.streaming.blockInterval=1500ms" \
+--conf "spark.shuffle.consolidateFiles=true" \
+--driver-memory 10G \
+--executor-memory 8G \
+--executor-cores 20 \
+--num-executors 20 \
+
+17/11/20 01:07:51 WARN KafkaUtils: overriding enable.auto.commit to false for executor
+17/11/20 01:07:51 WARN KafkaUtils: overriding auto.offset.reset to none for executor
+17/11/20 01:07:51 WARN KafkaUtils: overriding executor group.id to spark-executor-nyse-stock-ticker
+17/11/20 01:07:51 WARN KafkaUtils: overriding receive.buffer.bytes to 65536 see KAFKA-3135
+
+
+import org.apache.spark._
+import org.apache.spark.sql._
+import org.apache.spark.streaming._
+import org.apache.spark.streaming.kafka010._
+import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
+import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
+import org.apache.kafka.common.serialization.StringDeserializer
+import spark.implicits._
+
+val kafkaParams = Map[String, Object](
+    "bootstrap.servers" -> "localhost:9092,localhost:9093,localhost:9094",
+    "key.deserializer" -> classOf[StringDeserializer],
+    "value.deserializer" -> classOf[StringDeserializer],
+    "group.id" -> "atmlogs",
+    "auto.offset.reset" -> "latest",
+    "enable.auto.commit" -> (false: java.lang.Boolean)
+)
+
+val ssc = new StreamingContext(sc, Seconds(5))
+
+val inputStream = KafkaUtils.createDirectStream(ssc, PreferConsistent, Subscribe[String, String](Array("atmlogs"), kafkaParams))
+
+val processedStream = inputStream.flatMap(line=>line.value.split("\n"))
+
+case class trade(tran_id: String, tran_dt: String, bran: String, lat: Float,lon: Float, tran_typ:String ,tran_amt: Float);
+
+//Inline Analytics
+processedStream.foreachRDD{rddrec=>
+val arrr= rddrec.collect()
+val rddd= sc.parallelize(arrr).map(_.split(",")).map(lines=>trade(lines(0).toString,lines(1).toString,lines(2).toString,lines(3).toFloat,lines(4).toFloat,lines(5).toString,lines(6).toFloat))
+val mydf=rddd.toDF()
+mydf.show()
+//mydf.count()
+//mydf.repartition(6).groupBy($"tran_typ").createOrReplaceTempView("tran")
+}
+
+//Save to HDFS Location
+//processedStream.saveAsTextFiles("hdfs://localhost:54310/tmp/streaming/stock_stream_02")
+
+ssc.start

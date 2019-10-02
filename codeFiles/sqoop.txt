@@ -1,0 +1,2 @@
+sqoop import --connect jdbc:mysql://localhost:3306/stocks --username root --password sqlpwd --table daily_prices -m 1 --append --target-dir "/user/demo/STOCKS/mydata/daily_prices_from_db/"
+

@@ -1,0 +1,38 @@
+import java.util
+
+import kafka.serializer.{DefaultDecoder, StringDecoder}
+import org.apache.spark.SparkConf
+import org.apache.spark.rdd.PairRDDFunctions
+import org.apache.spark.storage.StorageLevel
+import org.apache.spark.streaming.kafka.{HasOffsetRanges, KafkaUtils}
+import org.apache.spark.streaming.{Minutes, Seconds, StreamingContext}
+
+import scala.collection.mutable.ListBuffer
+
+val sparkConf = new SparkConf;
+
+sparkConf.setAppName("strmng-ingest-app");
+sparkConf.setMaster("local[2]");
+sparkConf.set("spark.driver.allowMultipleContexts", "true");
+
+val ssc = new StreamingContext(sparkConf, Seconds(5));
+
+val kafkaConf = Map("metadata.broker.list" -> "localhost:9092",
+"zookeeper.connect" -> "localhost:2181",
+"group.id" -> "kafka-spark-streaming",
+"zookeeper.connection.timeout.ms" -> "1000");
+
+val lines = KafkaUtils.createStream[Array[Byte], String, DefaultDecoder, StringDecoder](
+ssc, kafkaConf, Map("stream-ingestion-01" -> 1),
+StorageLevel.MEMORY_ONLY_SER).map(_._2);
+
+val words= lines.flatMap(line=>line.split(" "));
+
+val wordCounts = words.map(x => (x, 1L)).reduceByKey(_ + _)
+
+wordCounts.print
+
+ssc.start()
+
+
+ssc.stop()

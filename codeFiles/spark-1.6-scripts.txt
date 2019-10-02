@@ -1,0 +1,72 @@
+//Import 
+
+//for converting a RDD to Data Frame
+import sqlContext.implicits._
+
+//Import sql Row and Data Types
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.types.{StructType,StructField,StringType, FloatType,IntegerType}
+
+//Declare SQL Context
+val sqlContext = new org.apache.spark.sql.hive.HiveContext(sc)
+
+//Import Header
+val header = sc.textFile("/user/demo/NYSE/data/NYSE_daily_prices_header.csv")
+//Import Data
+val daily_trades = sc.textFile("/user/demo/NYSE/data/NYSE_daily_prices.csv")
+
+//Create Schema from Header
+val schema=StructType(header.first.split(",").map(fieldname => StructField(fieldname, StringType, true)))
+//Declare Row and Column Data Types
+val rowRDD = daily_trades.map(_.split(",")).map(t => Row(t(0),t(1),t(2),t(3).trim.toFloat,t(4).trim.toFloat,t(5).trim.toFloat,t(6).trim.toFloat,t(7).trim.toFloat,t(8).trim.toFloat))
+
+//Create Data Frame, with Column/Schema
+val df_trades = sqlContext.createDataFrame(rowRDD, schema)
+
+//Create a Table
+df_trades.registerTempTable("t_daily_trades")
+
+//Test by Firing a Query
+val results = sqlContext.sql("select count(*) as total_trades from t_daily_trades")
+val results = sqlContext.sql("select count(*) as total_trades from t_daily_trades where stock_symbol='AEA'")
+
+//Typical Data Frame Commands
+results.show()
+results.printSchema
+results.select
+
+case class Trade(exchange: String, symbol: String, trdate; String, open: Float, high: Float, low: Float,close: Float, volume: Int, adj-close: Float)
+
+//  SQLContext entry point for working with structured data
+val sqlContext=new org.apache.spark.sql.hive.HiveContext(sc)
+#val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+// this is used to implicitly convert an RDD to a DataFrame.
+import sqlContext.implicits._
+
+//From Hive
+val all_trades = sqlContext.sql("SELECT * FROM daily_prices")
+
+//From HDFS
+val all_dividends= sc.textFile("/user/demo/NYSE/data/dividends/NYSE_dividends.csv")
+
+//Declare Schema for Dividends
+case class Dividend (xchange: String, symbol: String, divdate: String, dividend: String)
+
+//Create data frame
+val df_dividend = all_dividends.map(_.split(",")).map (d => Dividend(d(0),d(1),d(2),d(3))).toDF()
+
+//Register as a Table
+df_dividend.registerTempTable("t_Dividends")
+
+//Query like SQL
+val dividend = sqlContext.sql("SELECT * FROM t_Dividends")
+
+//Create Joins
+val results= sqlContext.sql("select A.* from daily_prices A join dividends B on A.symbol=B.symbol and A.trdate=B.divdate where A.symbol='AEA'")
+val results= sqlContext.sql("CREATE TABLE IF NOT EXISTS  MY_DIVIDENDS_tODAY AS select A.* from daily_prices A join dividends B on A.symbol=B.symbol and A.trdate=B.divdate where A.symbol='AEA'")
+
+dividend.map(t => (t(0))).collect().foreach
+
+
+trades.select("xchange","symbol","trdate","open","high","low","close","volume").where($"symbol"==="AEA").show()
+

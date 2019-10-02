@@ -1,0 +1,23 @@
+scala> val rdd_fileB= split_fileB.flatMap(arr=> {
+     | val text= arr(0)
+     | val coun= arr(1)
+     | val date= text.split(" ")
+     | date.map(word=>(word,coun))
+     | }
+     | )
+rdd_fileB: org.apache.spark.rdd.RDD[(String, String)] = MapPartitionsRDD[20] at flatMap at <console>:31
+
+scala> rdd_fileB.foreach( {case (word, coun)=> println(s"{$word, $coun}")})
+{Jan-01, able,5}
+{Feb-02, about,3}
+{Mar-03, about,8}
+{Apr-04, able,13}
+{Feb-22, actor,3}
+{Feb-23, burger,5}
+{Mar-08, burger,2}
+{Dec-15, able,100}
+
+scala> 
+
+
+

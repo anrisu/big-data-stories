@@ -1,0 +1,29 @@
+CREATE TABLE cass_insert (
+    xchange ascii,
+    symbol ascii,
+    trdate timestamp,
+    open decimal,
+    high decimal,
+    low decimal,
+    close decimal,
+    volume bigint,
+    adj_close decimal,
+    PRIMARY KEY (symbol, trdate)
+) WITH CLUSTERING ORDER BY (trdate DESC)
+
+
+
+import com.datastax.spark.connector._
+import org.apache.spark.sql.cassandra._
+
+val tradesFile = sc.textFile("/projects/stocks/nyse/data/daily_prices");
+
+case class trade(xchange: String, symbol: String, trdate: String, open: Float,high: Float,low: Float,close: Float,volume: Integer,adj_close: Float);
+
+val tradesRDD = sc.parallelize(tradesFile.collect).map(_.split(",")).map(lines=>trade(lines(0).toString,lines(1).toString,lines(2).toString,lines(3).toFloat,lines(4).toFloat,lines(5).toFloat,lines(6).toFloat,lines(7).toInt, lines(8).toFloat))
+
+tradesRDD.first
+
+tradesRDD.saveToCassandra("anrisu","cass_insert", SomeColumns("xchange","symbol","trdate","open","high","low","close","volume","adj_close"));
+
+    ,

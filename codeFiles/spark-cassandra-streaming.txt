@@ -1,0 +1,43 @@
+import org.apache.spark._
+import org.apache.spark.sql._
+import org.apache.spark.streaming._
+import org.apache.spark.streaming.kafka010._
+import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
+import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
+import org.apache.kafka.common.serialization.StringDeserializer
+import spark.implicits._
+
+import com.datastax.spark.connector._
+import org.apache.spark.sql.cassandra._
+
+val kafkaParams = Map[String, Object](
+    "bootstrap.servers" -> "localhost:9092,localhost:9093,localhost:9094",
+    "key.deserializer" -> classOf[StringDeserializer],
+    "value.deserializer" -> classOf[StringDeserializer],
+    "group.id" -> "nyse-stock-ticker",
+    "auto.offset.reset" -> "latest",
+    "enable.auto.commit" -> (false: java.lang.Boolean)
+  )
+
+val ssc = new StreamingContext(sc, Seconds(2))
+val ssc = new StreamingContext(sc, milliseconds(500))
+
+
+///===================================================================================================================================
+val inputStream = KafkaUtils.createDirectStream(ssc, PreferConsistent, Subscribe[String, String](Array("stock-ticker-48-par"), kafkaParams))
+
+val processedStream = inputStream.flatMap(line=>line.value.split("\n"))
+
+//Save to HDFS Location
+//processedStream.saveAsTextFiles("hdfs://localhost:54310/tmp/streaming/stock_stream_02")
+
+case class trade(xchange: String, symbol: String, trdate: String, open: Float,high: Float,low: Float,close: Float,volume: Integer,adj_close: Float);
+
+processedStream.foreachRDD{rddrec=>
+val arrr= rddrec.collect()
+val rddd= sc.parallelize(arrr).map(_.split(",")).map(lines=>trade(lines(0).toString,lines(1).toString,lines(2).toString,lines(3).toFloat,lines(4).toFloat,lines(5).toFloat,lines(6).toFloat,lines(7).toInt, lines(8).toFloat))
+rddd.repartition(6)
+rddd.saveToCassandra("anrisu","cass_insert", SomeColumns("xchange","symbol","trdate","open","high","low","close","volume","adj_close"))
+}
+
+ssc.start

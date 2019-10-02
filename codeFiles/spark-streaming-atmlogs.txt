@@ -1,0 +1,39 @@
+import org.apache.spark._
+import org.apache.spark.sql._
+import org.apache.spark.streaming._
+
+import org.apache.spark.streaming.kafka010._
+import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
+import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
+import org.apache.kafka.common.serialization.StringDeserializer
+
+import spark.implicits._
+
+val kafkaParams = Map[String, Object](
+    "bootstrap.servers" -> "localhost:9092,localhost:9093,localhost:9094",
+    "key.deserializer" -> classOf[StringDeserializer],
+    "value.deserializer" -> classOf[StringDeserializer],
+    "group.id" -> "atmlogs",
+    "auto.offset.reset" -> "latest",
+    "enable.auto.commit" -> (false: java.lang.Boolean)
+)
+
+val ssc = new StreamingContext(sc, Seconds(5))
+val inputStream = KafkaUtils.createDirectStream(ssc, PreferConsistent, Subscribe[String, String](Array("atmlogs"), kafkaParams))
+
+val processedStream = inputStream.flatMap(line=>line.value.split("\n"))
+
+case class atmlog(tran_id: String, tran_dt: String, branch: String,latitude: Float,longitude: Float,tran_typ: String,tran_amt: Float);
+
+//Inline Analytics
+processedStream.foreachRDD{rddrec=>
+val arrr= rddrec.collect()
+val rddd=sc.parallelize(arrr).map(_.split(",")).map(lines=>atmlog(lines(0).toString,lines(1).toString,lines(2).toString,lines(3).toFloat,lines(4).toFloat,lines(5).toString,lines(6).toFloat))
+val mydf=rddd.toDF()
+mydf.show()
+//mydf.count()
+mydf.repartition(6).groupBy($"tran_typ").agg(sum($"tran_amt")).createOrReplaceTempView("by_tran_typ")
+}
+
+ssc.start
+ssc.awaitTermination

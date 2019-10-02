@@ -1,0 +1,87 @@
+import spark.sql
+import org.apache.spark.sql.SparkSession;
+import spark.implicits._
+
+val warehouseLocation = "hdfs://localhost:54310/user/hive/warehouse"
+val sparkSession = SparkSession.builder().appName("bank").config("spark.sql.warehouse.dir", warehouseLocation).enableHiveSupport().getOrCreate()
+
+val fd_raw = sql("select * from flightdata");
+
+=============================================================================================
+
+import spark.sql
+import org.apache.spark.sql.SparkSession;
+import spark.implicits._
+
+val warehouseLocation = "hdfs://localhost:54310/user/hive/warehouse"
+
+val sparkSession = SparkSession.builder().appName("atmdata").config("spark.sql.warehouse.dir", warehouseLocation).enableHiveSupport().getOrCreate()
+
+val atm_trans = sql("SELECT * FROM bank.t_transactions");
+
+atm_trans.repartition(9).select($"tran_dt",year($"tran_dt"), month($"tran_dt"), dayofmonth($"tran_dt"), hour($"tran_dt"), minute($"tran_dt") ,second($"tran_dt")).orderBy($"tran_dt".desc).show
+
+=============================================================================================
+import spark.sql
+import org.apache.spark.sql.SparkSession;
+import spark.implicits._
+
+val warehouseLocation = "hdfs://localhost:54310/user/hive/warehouse";
+
+val sparkSession = SparkSession.builder().appName("trades").config("spark.sql.warehouse.dir", warehouseLocation).enableHiveSupport().getOrCreate();
+
+val trades_raw = sql("SELECT * FROM stocks.t_daily_trades_raw");
+val trades_orc_nc = sql("SELECT * FROM daily_trades_orc_nc");
+val trades_zlib = sql("SELECT * FROM daily_trades_orc_zlib");
+val trades_snappy = sql("SELECT * FROM daily_trades_orc_snappy");
+
+trades_raw.groupBy($"symbol",year($"trdate").alias("yearr")).agg(avg($"open"),avg($"high"),avg($"low"),avg($"close")).orderBy($"symbol",$"yearr").show;
+
+trades_orc_nc.groupBy($"symbol",year($"trdate").alias("yearr")).agg(avg($"open"),avg($"high"),avg($"low"),avg($"close")).orderBy($"symbol",$"yearr").show;
+
+trades_orc_zlib.groupBy($"symbol",year($"trdate").alias("yearr")).agg(avg($"open"),avg($"high"),avg($"low"),avg($"close")).orderBy($"symbol",$"yearr").show;
+
+trades_orc_snappy.groupBy($"symbol",year($"trdate").alias("yearr")).agg(avg($"open"),avg($"high"),avg($"low"),avg($"close")).orderBy($"symbol",$"yearr").show;
+
+
+sql("select * from my_trades");
+
+
+trades.printSchema
+trades.show
+trades.count
+
+//Select Operations
+trades.select("symbol","open","high","low","close", "volume").show
+trades.select("symbol","open","high","low","close", "volume").sort($"symbol".desc).show
+trades.select("symbol","open","high","low","close", "volume").sort($"symbol".asc).show
+
+//Filter Operations
+trades.filter($"symbol"==="ABB").show
+trades.filter($"symbol"==="ABB" || $"symbol"==="AEA").show
+trades.filter($"symbol"==="ABB" || $"symbol"==="AEA").sort($"symbol".desc).show
+trades.filter($"symbol"==="ABB" || $"symbol"==="AEA").sort($"symbol".asc).show
+
+//Sort Operations
+trades.sort($"symbol".desc).show;
+trades.sort($"symbol".asc).show;
+
+//Aggregation Operations
+trades.groupBy($"symbol").agg(sum($"volume")).show
+trades.groupBy($"symbol").agg(avg($"volume")).show
+trades.groupBy($"symbol").agg(max($"volume")).show
+trades.groupBy($"symbol").agg(min($"volume")).show
+trades.groupBy($"symbol").agg(($"open") as "open", max($"high") as "high",max($"low") as "low",max($"close") as "close" , max($"volume") as "volume").sort($"symbol").show
+
+
+trades.join(trades_rt,trades_rt("symbol")===trades("symbol") && trades_rt("trdate") === date_add(trades("trdate"),1)).select(trades("symbol") as "a.symbol", trades("trdate") as "a.trdate", trades_rt("symbol") as "b.symbol", trades_rt("trdate") as "b.trdate", trades("close") as "a.close", trades_rt("close") as "b.close", trades("close")-trades_rt("close") as "diff").where(trades("symbol")==="ABB").orderBy(trades("trdate")).withColumn("trend", when($"diff"<0,"Down").otherwise(when($"diff"===0, "No Change").otherwise("Up"))) 
+
+create table stocks_trends STORED AS ORC tblproperties ("orc.compress"="ZLIB") as select b.symbol as b_symbol, b.trdate as b_trdate, b.close as b_close, a.trdate as a_trdate,a.close as a_close, (b.close-a.close) as diff, CASE WHEN (b.close-a.close)>0  then "Up" WHEN (b.close-a.close)<0 then "Down" ELSE "No Change" END as Trend from t_daily_trades_orc_zlib a inner join t_daily_trades_orc_zlib b on b.symbol=a.symbol and b.trdate=DATE_ADD(a.trdate,1);
+
+
+import org.apache.spark.sql.hive.HiveContext;
+val samp07 = sql("SELECT * FROM emp_data_01");
+val samp08 = sql("SELECT * FROM emp_data_02");
+val sal_growth=samp07.join(samp08, samp07("code") === samp08("code")).where(samp07("salary")<samp08("salary")).select(samp07("description"), samp07("salary") as "prev_sal",samp08("salary") as "curr_sal", samp08("salary")-samp07("salary") as "Incr").orderBy($"Incr")
+sal_growth.show
+sal_growth.show(50,false)

@@ -1,0 +1,9 @@
+import org.apache.spark.sql.hive.HiveContext;
+
+val e01 = sql("SELECT * FROM emp_data_01");
+val e02 = sql("SELECT * FROM emp_data_02");
+
+val sal_growth = e01.join(e02, e01("code") === e02("code")).where(e01("salary") < e02("salary")).select(e01("description"), e01("total_emp") as "prev_hc",e02("total_emp") as "curr_hc", e01 ("salary") as "prev_sal", e02("salary") as "curr_sal")
+val variance=sal_growth.select($"description",$"prev_hc",$"curr_hc",round((($"curr_hc"-$"prev_hc")/$"prev_hc") * 100,2) as "hc_var",$"prev_sal",$"curr_sal",round((($"curr_sal"-$"prev_sal")/$"prev_sal") * 100,2) as "sal_var").orderBy($"hc_var".desc,$"sal_var".desc)
+
+//variance.repartition(6).toJavaRDD.saveAsTextFile("hdfs://quickstart.cloudera:8020/user/projects/variance")

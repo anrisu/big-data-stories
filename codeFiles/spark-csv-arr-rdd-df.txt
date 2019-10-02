@@ -1,0 +1,58 @@
+//import Required
+import org.apache.spark.sql._
+
+val sqlContext = new org.apache.spark.sql.SQLContext(sc);
+import sqlContext.implicits._
+
+//Get CSV File
+val custFile = sc.textFile("/user/spark/data/cust_scores.csv");
+
+//Test
+custFile.first();
+
+//Conver to Array
+val custArray = custFile.collect();
+
+//Define a Schema
+case class Customer (CustID: Integer, CatID: Integer, Score: Double);
+
+//Convert Array to RDD
+val custRDD = sc.parallelize(custArray).map(_.split(",")).map(line => Customer(line(0).toInt, line(1).toInt, line(2).toDouble));
+
+//RDD
+val custDF = custRDD.toDF();
+
+// Test
+custDF.printSchema();
+
+//Display
+custDF.show();
+
+//Use Interactively
+custDF.select("CustID","CatID","Score").where(($"Score" > "0.7" && $"CatID" <= "20002")).show();
+//
+custDF.select("CustID","CatID","Score").where(($"Score" < "0.7" && $"CatID" <= "20002")).show();
+
+////// OR ////////
+
+//Export as Text File to HDFS to a location
+//custRDD.saveAsTextFile("/user/spark/results/scores");
+////// OR ////////
+//custDF.rdd.saveAsTextFile("/user/spark/results/scores");
+//Use
+val scoresFile = sc.textFile("/user/spark/results/scores/part*");
+scoresFile.first
+//val scoresArray=scoresFile.map(_.replace("[","")).map(_.replace("]","")).collect
+//Or
+val scoresArray=scoresFile.map(_.replace("Customer(","")).map(_.replace(")","")).collect
+
+case class Scores (CustID: Integer, CatID: Integer, Score: Double);
+val scoresRDD = sc.parallelize(scoresArray).map(_.split(",")).map(line => Scores(line(0).toInt, line(1).toInt, line(2).toDouble));
+
+val scoresDF = scoresRDD.toDF();
+scoresDF.show();
+
+//Other RDD Operations
+//val rdd1 = sc.parallelize(List("lion", "tiger", "tiger", "peacock", "horse"))
+//val rdd2 = sc.parallelize(List("lion", "tiger"))
+

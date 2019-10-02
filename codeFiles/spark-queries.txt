@@ -1,0 +1,26 @@
+sc.parallelize(1 to 1000000).count
+import org.apache.spark.sql.hive.HiveContext;
+val emp = sqlContext.sql("select * from employee");
+emp.printSchema
+emp.count
+emp.show
+emp.filter($"job"==="MANAGER").show
+emp.sort($"job".desc).show
+emp.sort($"job".asc).show
+emp.sort($"empno".asc).show
+emp.sort($"empno".desc).show
+emp.agg(sum($"sal")).show
+emp.agg(sum($"sal"),avg($"sal")).show
+emp.agg(sum($"sal"),avg($"sal"),avg($"sal")/sum($"sal")).show
+emp.agg(sum($"sal"),avg($"sal"),avg($"sal")/sum($"sal")*100).show
+emp.agg(sum($"sal") as "tot_sal",avg($"sal") as "avg_sal",avg($"sal")/sum($"sal")*100 as "%age").show
+val job = emp.groupBy($"job")
+job.show
+emp.groupBy($"job").show
+emp.groupBy($"job")
+emp.groupBy($"job").select
+emp.groupBy($"job").select($"job")
+
+302  import org.apache.spark.h2o._
+303  val h2oContext = new H2OContext(sc).start();
+

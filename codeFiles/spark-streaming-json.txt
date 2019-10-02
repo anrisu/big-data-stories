@@ -1,0 +1,33 @@
+import org.apache.spark._
+import org.apache.spark.sql._
+import org.apache.spark.streaming._
+import org.apache.spark.streaming.kafka010._
+import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
+import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
+import org.apache.kafka.common.serialization.StringDeserializer
+import spark.implicits._
+
+val kafkaParams = Map[String, Object](
+    "bootstrap.servers" -> "localhost:9092,localhost:9093,localhost:9094",
+    "key.deserializer" -> classOf[StringDeserializer],
+    "value.deserializer" -> classOf[StringDeserializer],
+    "group.id" -> "nyse-stock-ticker",
+    "auto.offset.reset" -> "latest",
+    "enable.auto.commit" -> (false: java.lang.Boolean)
+)
+
+val ssc = new StreamingContext(sc, Seconds(10))
+
+val inputStream = KafkaUtils.createDirectStream(ssc, PreferConsistent, Subscribe[String, String](Array("kylin_streaming_topic"), kafkaParams))
+
+val processedStream = inputStream.map(record=>(record.value))
+
+val sqlContext = new SQLContext(sc)
+
+processedStream.foreachRDD{rddrec=>
+val df = sqlContext.read.json(rddrec)
+val newdf=df.select("amount","category","country","currency","device","order_time","qty","user.gender","user.age","user.id")
+newdf.createOrReplaceTempView("purchases")
+}
+
+ssc.start

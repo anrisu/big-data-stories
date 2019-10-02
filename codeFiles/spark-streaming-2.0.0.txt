@@ -1,0 +1,60 @@
+--conf "spark.ui.showConsoleProgress=false" \
+--conf "spark.driver.extraJavaOptions=-XX:MaxPermSize=6G -XX:+UseConcMarkSweepGC -Dlog4j.configuration=log4j-eir.properties" \
+--conf "spark.sql.tungsten.enabled=false" \
+--conf "spark.eventLog.dir=hdfs://nameservice1/user/spark/applicationHistory" \
+--conf "spark.eventLog.enabled=true" \
+--conf "spark.sql.codegen=false" \
+--conf "spark.sql.unsafe.enabled=false" \
+--conf "spark.executor.extraJavaOptions=-XX:+UseConcMarkSweepGC -Dlog4j.configuration=log4j-eir.properties" \
+--conf "spark.streaming.backpressure.enabled=true" \
+--conf "spark.locality.wait=1s" \
+--conf "spark.streaming.blockInterval=1500ms" \
+--conf "spark.shuffle.consolidateFiles=true" \
+--driver-memory 10G \
+--executor-memory 8G \
+--executor-cores 20 \
+--num-executors 20 \
+
+import org.apache.spark._
+import org.apache.spark.sql._
+import org.apache.spark.streaming._
+
+import org.apache.spark.streaming.kafka010._
+import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
+import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
+import org.apache.kafka.common.serialization.StringDeserializer
+
+import spark.implicits._
+
+val kafkaParams = Map[String, Object](
+    "bootstrap.servers" -> "localhost:9092",
+    "key.deserializer" -> classOf[StringDeserializer],
+    "value.deserializer" -> classOf[StringDeserializer],
+    "group.id" -> "2nd-topic-repl",
+    "auto.offset.reset" -> "latest",
+    "enable.auto.commit" -> (false: java.lang.Boolean)
+)
+
+val ssc = new StreamingContext(sc, Seconds(5))
+val inputStream = KafkaUtils.createDirectStream(ssc, PreferConsistent, Subscribe[String, String](Array("2nd-topic-repl"), kafkaParams))
+
+val processedStream = inputStream.flatMap(line=>line.value.split("\n"))
+
+case class trade(xchange: String, symbol: String, trdate: String, open: Float,high: Float,low: Float,close: Float,volume: Integer,adj_close: Float);
+
+//Inline Analytics
+processedStream.foreachRDD{rddrec=>
+val arrr= rddrec.collect()
+val rddd= sc.parallelize(arrr).map(_.split(",")).map(lines=>trade(lines(0).toString,lines(1).toString,lines(2).toString,lines(3).toFloat,lines(4).toFloat,lines(5).toFloat,lines(6).toFloat,lines(7).toInt, lines(8).toFloat))
+val mydf=rddd.toDF()
+mydf.show()
+//mydf.count()
+//mydf.repartition(6).groupBy($"symbol").agg(avg($"open"),avg($"high"),avg($"low"),avg($"close")).createOrReplaceTempView("stocksGrouped")
+}
+
+//Save to HDFS Location
+//processedStream.saveAsTextFiles("hdfs://localhost:54310/tmp/streaming/stock_stream_02")
+
+ssc.start
+
+ssc.awaitTermination

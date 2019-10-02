@@ -1,0 +1,3 @@
+val summary= trades.filter($"symbol"==="ABB" && $"symbol"==="AEA").groupBy($"symbol",year(to_date($"trdate")) as "year").agg(max(($"volume")) as "max",min($"volume") as "min");
+df.groupBy($"symbol",year($"trdate").alias("tr_year")).agg(avg($"volume").alias("avg_volume")).where($"tr_year" >= 1999 && $"tr_year" <=2000).filter($"symbol" like "A%A").show
+

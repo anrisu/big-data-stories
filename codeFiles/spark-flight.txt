@@ -1,0 +1,118 @@
+/*
+//Hive Script
+create external table flightdata_orc_zlib month,dayofmonth,dayofweek,deptime,crsdeptime,arrtime,crsarrtime,flightnum,tailnum,actualelapsedtime,
+crselapsedtime,airtime,arrdelay,depdelay,origin,dest,distance,taxiin,taxiout,cancelled,cancellationcode,diverted,carrierdelay,
+weatherdelay,nasdelay,securitydelay,lateaircraftdelay,isarrdelayed,isdepdelayed from flightdata partitioned by (year int, uniquecarrier string) INTO 32 BUCKETS STORED AS ORC tblproperties ("orc.compress"="ZLIB");
+
+
+CREATE TABLE Employee(
+ID BIGINT,
+NAME STRING, 
+AGE INT,
+SALARY BIGINT 
+)
+COMMENT 'This is Employee table in ORC file format'
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS ORC tblproperties ("orc.compress"="ZLIB");
+
+Create external table flightdata(year INT, month INT,dayofmonth INT,dayofweek INT,deptime INT,crsdeptime INT,arrtime INT,crsarrtime INT,uniquecarrier STRING,flightnum INT,tailnum STRING,actualelapsedtime INT,crselapsedtime INT,airtime INT,arrdelay INT,depdelay INT,origin STRING,dest STRING,distance INT,taxiin INT,taxiout INT,cancelled INT,cancellationcode STRING,diverted INT,carrierdelay INT,weatherdelay INT,nasdelay INT,securitydelay INT,lateaircraftdelay INT,isarrdelayed STRING,isdepdelayed STRING)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ","
+STORED AS TEXTFILE LOCATION '/projects/airlines/data/flightdata';
+//
+
+--executor-memory 2g --num-executors 80 --executor-cores 2
+
+--master local[2] --num-executors 10 --executor-cores 2 --executor-memory 4g --driver-memory 5g --confspark.yarn.executor.memoryOverhead=4096
+
+--master local[2] --num-executors 4 --executor-cores 3 --executor-memory 2g --driver-memory 4g  --conf spark.yarn.executor.memoryOverhead=4096
+
+--master local[*] --num-executors 4 --executor-cores 3 --executor-memory 2g --driver-memory 4g  --conf spark.yarn.executor.memoryOverhead=4096
+
+--master local[*] --num-executors 4 --executor-cores 3 --executor-memory 2g --driver-memory 2g  --conf spark.yarn.executor.memoryOverhead=4096
+
+--master local[*] --num-executors 12 --executor-cores 2 --executor-memory 3g --conf spark.yarn.executor.memoryOverhead=4096
+--master local[*] --executor-memory 19G --executor-cores 7 --num-executors 3 (executors per data node, use as much as cores)
+--master local[*] --executor-memory 19G --executor-cores 4 --num-executors 3 (# of cores reduced)
+--master local[*] --executor-memory 4G --executor-cores 2 --num-executors 12 (less core, more executor)
+
+-Dspark.executor.memory=6g
+
+SparkConf().set("spark.driver.maxResultSize", "2g"))
+
+conf = (SparkConf()
+    .set("spark.driver.maxResultSize", "2g"))
+
+Elapsed times:
+50 min 15 sec
+55 min 48 sec
+31 min 23 sec
+*/
+
+//SC Context
+val sqlContext = new org.apache.spark.sql.SQLContext(sc);
+import sqlContext.implicits._;
+
+//import Required
+import org.apache.spark.sql._;
+
+//Define a Schema
+case class flightdata (Year:INT,Month:INT,DayofMonth:INT,DayOfWeek:INT,DepTime:INT,CRSDepTime:INT,ArrTime:INT,CRSArrTime:INT,UniqueCarrier:STRING,FlightNum:INT,TailNum:STRING,ActualElapsedTime:INT,CRSElapsedTime:INT,AirTime:INT,ArrDelay:INT,DepDelay:INT,Origin:STRING,Dest:STRING,Distance:INT,TaxiIn:INT,TaxiOut:INT,Cancelled:INT,CancellationCode:STRING,Diverted:INT,CarrierDelay:INT,WeatherDelay:INT,NASDelay:INT,SecurityDelay:INT,LateAircraftDelay:INT,IsArrDelayed:STRING,IsDepDelayed:STRING);
+
+//Get CSV File
+//val flightdataFile = sc.textFile("/user/project/flightdata/large/flight-data-sample");
+val flightdataFile = sc.textFile("/user/project/flightdata/small/flight-data-part00");
+
+//Convert Array to RDD
+val flightRDD = sc.parallelize(flightArray).map(_.split(",")).map(line => flightdata((line(0).INT,line(1).INT,line(2).INT,line(3).Interger,line(4).INT,line(5).INT,line(6).INT,line(7).INT,line(8).STRING,line(9).INT,line(10).STRING,line(11).INT,,line(25).INT,line(26).INT,line(27).INT,line(28).INT,line(29).STRING,line(30).STRING));
+
+//Convert Array to RDD
+val flightRDD = sc.parallelize(flightArray).map(_.split(",")).map(line => flightdata((line(0).INT,line(1).INT,line(2).INT,line(3).Interger,line(4).INT,line(5).INT,line(6).INT,line(7).INT,line(8).STRING,line(9).INT,line(10).STRING,line(11).INT,line(12).INT,line(13).INT,line(14).INT,line(15).INT,line(16).STRING,line(17).STRING,line(18).INT,line(19).INT,line(20).INT,line(21).INT,line(22).STRING,line(23).INT,line(24).INT,line(25).INT,line(26).INT,line(27).INT,line(28).INT,line(29).STRING,line(30).STRING));
+
+//Test
+flightdataFile.first();
+
+//Conver to Array
+val flightArray = flightdataFile.collect();
+
+
+//Convert Array to RDD
+val flightRDD = sc.parallelize(flightArray).map(_.split(",")).map(line => flightdata((line(0).INT,line(1).INT,line(2).INT,line(3).Interger,line(4).INT,line(5).INT,line(6).INT,line(7).INT,line(8).STRING,line(9).INT,line(10).STRING,line(11).INT,line(12).INT,line(13).INT,line(14).INT,line(15).INT,line(16).STRING,line(17).STRING,line(18).INT,line(19).INT,line(20).INT,line(21).INT,line(22).STRING,line(23).INT,line(24).INT,line(25).INT,line(26).INT,line(27).INT,line(28).INT,line(29).STRING,line(30).STRING));
+
+//RDD
+val flightDF = flightRDD.toDF();
+
+// Test
+flightDF.printSchema();
+
+//Display
+flightDF.show();
+
+//Use Interactively
+//flightDF.select("flightID","CatID","Score").where(($"Score" > "0.7" && $"CatID" <= "20002")).show();
+//
+//flightDF.select("flightID","CatID","Score").where(($"Score" < "0.7" && $"CatID" <= "20002")).show();
+
+////// OR ////////
+
+//Export as Text File to HDFS to a location
+//flightRDD.saveAsTextFile("/user/spark/results/scores");
+////// OR ////////
+//flightDF.rdd.saveAsTextFile("/user/spark/results/scores");
+//Use
+val scoresFile = sc.textFile("/user/spark/results/scores/part*");
+scoresFile.first
+//val scoresArray=scoresFile.map(_.replace("[","")).map(_.replace("]","")).collect
+//Or
+val scoresArray=scoresFile.map(_.replace("flightomer(","")).map(_.replace(")","")).collect
+
+case class Scores (flightID: INT, CatID: INT, Score: Double);
+val scoresRDD = sc.parallelize(scoresArray).map(_.split(",")).map(line => Scores(line(0).toInt, line(1).toInt, line(2).toDouble));
+
+val scoresDF = scoresRDD.toDF();
+scoresDF.show();
+
+//Other RDD Operations
+//val rdd1 = sc.parallelize(List("lion", "tiger", "tiger", "peacock", "horse"))
+//val rdd2 = sc.parallelize(List("lion", "tiger"))
+

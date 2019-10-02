@@ -1,0 +1,18 @@
+import org.apache.spark.sql.SparkSession;
+import spark.implicits._
+
+val warehouseLocation = "hdfs://localhost:54310/user/hive/warehouse"
+val sparkSession = SparkSession.builder().appName("trades").config("spark.sql.warehouse.dir", warehouseLocation).enableHiveSupport().getOrCreate()
+val trades = sql("SELECT * FROM trades")
+
+trades.groupBy($"symbol",year($"trdate").alias("yearr")).agg(avg($"volume").alias("avg_volume")).orderBy($"symbol",$"yearr").createOrReplaceTempView("my_trades");
+
+
+
+select * from my_trades where symbol in ('IBM') order by yearr
+
+
+select symbol,yearr,avg_volume from my_trades where symbol in (select distinct symbol from my_trades where yearr=1962) and yearr="${yearr=1962,1962|1963|1964|1965|1966|1967|1968|1967|1968|1969|1970|1971|1972|1973}"
+
+
+select * from my_trades where yearr=1962
