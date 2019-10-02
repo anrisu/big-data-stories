@@ -1,0 +1,39 @@
+echo "STARTING TOMCAT===================================================================================================================="
+${CATALINA_HOME}/./bin/startup.sh
+sleep 3
+echo "STARTING ZOOKEEPER==========================================================================================================="
+${ZOOKEEPER_HOME}/./bin/zkServer.sh start
+sleep 3
+echo "STARTING YARN==========================================================================================================="
+start-yarn.sh
+sleep 3
+echo "STARTING YARN TIMELINE-SERVER==========================================================================================================="
+${HADOOP_HOME}/./bin/yarn --daemon start timelineserver
+sleep 3
+echo "STARTING HISTORY-SERVER==========================================================================================================="
+${HADOOP_HOME}/./bin/mapred --daemon start historyserver
+sleep 3
+echo "STARTING HDFS==========================================================================================================="
+${HADOOP_HOME}/./sbin/start-dfs.sh
+sleep 3
+echo "STARTING HIVE METASTORE - thrift==================================================================================================="
+hive --service metastore > /dev/null 2>&1 &
+sleep 7
+netstat -an | grep 9083
+echo "STARTING HIVESERVER2 - thrift======================================================================================================"
+hive --service hiveserver2 > /dev/null 2>&1 &
+
+exit
+
+#echo "STARTING HBASE====================================================================================================================="
+#${HBASE_HOME}/./bin/start-hbase.sh
+sleep 3
+echo "STARTING HIVE METASTORE - thrift==================================================================================================="
+hive --service metastore > /dev/null 2>&1 &
+sleep 7
+netstat -an | grep 9083
+echo "STARTING HIVESERVER2 - thrift======================================================================================================"
+hive --service hiveserver2 > /dev/null 2>&1 &
+sleep 7
+#netstat -an | grep 10000
+jps -g
